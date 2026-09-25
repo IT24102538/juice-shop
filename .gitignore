@@ -1,73 +1,34 @@
-# App
+# Environment secrets - NEVER commit these
+  .env
+  .env.local
+  .env.production
+
+  # Node modules (too large)
+  node_modules/
+
+  # Build output
+  frontend/dist/
+
+  # Logs
+  *.log
+  npm-debug.log*
+
+  # OS files
+  .DS_Store
+  Thumbs.db
+
+  # IDE
+  .vscode/
+  .idea/
+
+  PowerShell command alternative:
+    @"
+.env
+.env.local
 node_modules/
-*.sqlite
-order_*.pdf
-app/
-!frontend/src/app
-uploads/complaints/*.*
-!uploads/complaints/.gitkeep
-ftp/legal.md
-package-lock.json
-i18n/*.json
-i18n/*.invalid
-!frontend/src/assets/i18n/*.json
-!data/static/i18n/*.json
-/data/juiceshop.sqlite-journal
-
-# Build
-.nyc_output/
-.sass-cache/
-build/
-cache/
-coverage/
-dist/
-logs/
-vagrant/.vagrant/
-*.orig
-*.out
+frontend/dist/
 *.log
-JSON
-JSON.map
-frontend/src/**/*.js
-/bom.json
-/bom.xml
-
-# IDEs
-.idea/
-.vscode/
-out/
-*.eml
-*.iml
-*.iws
-*.swp
-.ai/mcp/mcp.json
-.junie/memory/
-.junie/plans/
-
-# Branch ghpages
-assets/
-!frontend/src/assets/
-
-# Custom configuration files
-config/*.yml
-!config/addo.yml
-!config/bodgeit.yml
-!config/ctf.yml
-!config/fbctf.yml
-!config/default.yml
-!config/juicebox.yml
-!config/quiet.yml
-!config/test.yml
-!config/7ms.yml
-!config/mozilla.yml
-!config/unsafe.yml
-!config/tutorial.yml
-!config/oss.yml
-!config/defcon33.yml
-
-# System Files
+npm-debug.log*
 .DS_Store
-
-# Misc
-.playwright-mcp/
-cypress/screenshots/
+Thumbs.db
+"@ | Set-Content .gitignore -Encoding UTF8
