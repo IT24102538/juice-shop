@@ -1,6 +1,6 @@
 ﻿services:
   juice-shop:
-    image: bkimminich/juice-shop
+    build: .
     ports:
       - "3000:3000"
     environment:
@@ -22,3 +22,4 @@
 networks:
   app-network:
     driver: bridge
+
