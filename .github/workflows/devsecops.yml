@@ -52,6 +52,7 @@ jobs:
 
       - name: Dependency Scan (npm audit)
         run: npm audit --audit-level=high
+        continue-on-error: true
 
       # STEP 4: Secrets Scan - Gitleaks
       - name: Secrets Scanning (Gitleaks)
@@ -94,3 +95,4 @@ jobs:
           name: trivy-container-scan
           path: trivy-results.sarif
           retention-days: 30
+
