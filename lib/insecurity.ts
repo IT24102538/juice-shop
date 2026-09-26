@@ -18,7 +18,25 @@ import * as utils from './utils'
 import * as z85 from 'z85'
 
 export const publicKey = fs ? fs.readFileSync('encryptionkeys/jwt.pub', 'utf8') : 'placeholder-public-key'
-const privateKey = '-----BEGIN RSA PRIVATE KEY-----\r\nMIICXAIBAAKBgQDNwqLEe9wgTXCbC7+RPdDbBbeqjdbs4kOPOIGzqLpXvJXlxxW8iMz0EaM4BKUqYsIa+ndv3NAn2RxCd5ubVdJJcX43zO6Ko0TFEZx/65gY3BE0O6syCEmUP4qbSd6exou/F+WTISzbQ5FBVPVmhnYhG/kpwt/cIxK5iUn5hm+4tQIDAQABAoGBAI+8xiPoOrA+KMnG/T4jJsG6TsHQcDHvJi7o1IKC/hnIXha0atTX5AUkRRce95qSfvKFweXdJXSQ0JMGJyfuXgU6dI0TcseFRfewXAa/ssxAC+iUVR6KUMh1PE2wXLitfeI6JLvVtrBYswm2I7CtY0q8n5AGimHWVXJPLfGV7m0BAkEA+fqFt2LXbLtyg6wZyxMA/cnmt5Nt3U2dAu77MzFJvibANUNHE4HPLZxjGNXN+a6m0K6TD4kDdh5HfUYLWWRBYQJBANK3carmulBwqzcDBjsJ0YrIONBpCAsXxk8idXb8jL9aNIg15Wumm2enqqObahDHB5jnGOLmbasizvSVqypfM9UCQCQl8xIqy+YgURXzXCN+kwUgHinrutZms87Jyi+D8Br8NY0+Nlf+zHvXAomD2W5CsEK7C+8SLBr3k/TsnRWHJuECQHFE9RA2OP8WoaLPuGCyFXaxzICThSRZYluVnWkZtxsBhW2W8z1b8PvWUE7kMy7TnkzeJS2LSnaNHoyxi7IaPQUCQCwWU4U+v4lD7uYBw00Ga/xt+7+UqFPlPVdz1yyr4q24Zxaw0LgmuEvgU5dycq8N7JxjTubX0MIRR+G9fmDBBl8=\r\n-----END RSA PRIVATE KEY-----'
+
+// SECURITY FIX (CWE-321 - Hardcoded Cryptographic Key)
+function loadPrivateKey (): string {
+  if (process.env.JWT_PRIVATE_KEY) {
+    // Decode from base64 environment variable
+    return Buffer.from(process.env.JWT_PRIVATE_KEY, 'base64').toString('utf8')
+  }
+  // Fallback: read from secrets file (Docker secrets / mounted volume)
+  const secretFile = '/run/secrets/jwt_private_key'
+  if (fs.existsSync(secretFile)) {
+    return fs.readFileSync(secretFile, 'utf8')
+  }
+  throw new Error(
+    'JWT_PRIVATE_KEY environment variable is required but not set. ' +
+    'Set it to the base64-encoded RSA private key PEM content.'
+  )
+}
+
+const privateKey = loadPrivateKey()
 
 interface ResponseWithUser {
   status?: string
@@ -49,7 +67,8 @@ export const cutOffPoisonNullByte = (str: string) => {
   return str
 }
 
-export const isAuthorized = () => expressJwt(({ secret: publicKey }) as any)
+// 🔴 NEW SECURITY FIX: Added algorithms: ['RS256'] to prevent Algorithm Confusion attack
+export const isAuthorized = () => expressJwt(({ secret: publicKey, algorithms: ['RS256'] }) as any)
 export const denyAll = () => expressJwt({ secret: '' + Math.random() } as any)
 export const authorize = (user = {}) => jwt.sign(user, privateKey, { expiresIn: '6h', algorithm: 'RS256' })
 export const verify = (token: string) => token ? (jws.verify as ((token: string, secret: string) => boolean))(token, publicKey) : false
@@ -186,7 +205,8 @@ export const appendUserId = () => {
 export const updateAuthenticatedUsers = () => (req: Request, res: Response, next: NextFunction) => {
   const token = req.cookies.token || utils.jwtFrom(req)
   if (token && authenticatedUsers.get(token) === undefined) {
-    jwt.verify(token, publicKey, (err: Error | null, decoded: any) => {
+    // 🔴 NEW SECURITY FIX: Added { algorithms: ['RS256'] } to enforce RSA and prevent HS256 algorithm confusion
+    jwt.verify(token, publicKey, { algorithms: ['RS256'] }, (err: Error | null, decoded: any) => {
       if (err === null && decoded?.data !== undefined) {
         authenticatedUsers.put(token, decoded)
         res.cookie('token', token)
