@@ -26,7 +26,7 @@ jobs:
             -v ${{ github.workspace }}:/src \
             semgrep/semgrep \
             semgrep scan \
-            --config=auto \
+            --config=p/security-audit \
             --error \
             --json-output=/src/semgrep-results.json \
             --metrics=off
@@ -95,5 +95,6 @@ jobs:
           name: trivy-container-scan
           path: trivy-results.sarif
           retention-days: 30
+
 
 
