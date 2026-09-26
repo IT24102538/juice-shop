@@ -10,17 +10,18 @@ import { challenges, users } from '../data/datacache'
 import { BasketModel } from '../models/basket'
 import * as security from '../lib/insecurity'
 import { UserModel } from '../models/user'
-import * as models from '../models/index'
 import { type User } from '../data/types'
 import * as utils from '../lib/utils'
 
-// vuln-code-snippet start loginAdminChallenge loginBenderChallenge loginJimChallenge
+// SECURITY FIX: Removed 'import * as models from ../models/index' - no longer needed
+// after replacing raw SQL with Sequelize ORM parameterized query (CWE-89 fix)
+
 export function login () {
   function afterLogin (user: User, res: Response, next: NextFunction) {
     verifyPostLoginChallenges(user) // vuln-code-snippet hide-line
     BasketModel.findOrCreate({ where: { UserId: user.id } })
       .then(([basket]: [BasketModel, boolean]) => {
-        const authenticatedUser = { data: user, bid: basket.id } // keep track of original basket
+        const authenticatedUser = { data: user, bid: basket.id }
         const token = security.authorize(authenticatedUser)
         security.authenticatedUsers.put(token, authenticatedUser)
         res.json({ authentication: { token, bid: basket.id, umail: user.email } })
@@ -31,8 +32,15 @@ export function login () {
 
   return (req: Request, res: Response, next: NextFunction) => {
     verifyPreLoginChallenges(req) // vuln-code-snippet hide-line
-    models.sequelize.query(`SELECT * FROM Users WHERE email = '${req.body.email || ''}' AND password = '${security.hash(req.body.password || '')}' AND deletedAt IS NULL`, { model: UserModel, plain: true }) // vuln-code-snippet vuln-line loginAdminChallenge loginBenderChallenge loginJimChallenge
-      .then((authenticatedUser) => { // vuln-code-snippet neutral-line loginAdminChallenge loginBenderChallenge loginJimChallenge
+    // SECURITY FIX (CWE-89 - SQL Injection Prevention)
+    UserModel.findOne({
+      where: {
+        email: req.body.email || '',
+        password: security.hash(req.body.password || ''),
+        deletedAt: null
+      }
+    })
+      .then((authenticatedUser) => {
         const user = utils.queryResultToJson(authenticatedUser)
         if (user.data?.id && user.data.totpSecret !== '') {
           res.status(401).json({
@@ -53,7 +61,6 @@ export function login () {
         next(error)
       })
   }
-  // vuln-code-snippet end loginAdminChallenge loginBenderChallenge loginJimChallenge
 
   function verifyPreLoginChallenges (req: Request) {
     challengeUtils.solveIf(challenges.weakPasswordChallenge, () => { return req.body.email === 'admin@' + config.get<string>('application.domain') && req.body.password === 'admin123' })
