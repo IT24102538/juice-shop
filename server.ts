@@ -379,11 +379,21 @@ function configureApp (app: ReturnType<typeof express>, seq: typeof sequelize) {
   /* Feedbacks: GET allowed for feedback carousel, POST allowed in order to provide feedback without being logged in */
   app.use('/api/Feedbacks/:id', security.isAuthorized())
   /* Users: Only POST is allowed in order to register a new user */
+ /* Users: Only POST is allowed in order to register a new user */
   app.get('/api/Users', security.isAuthorized())
   app.route('/api/Users/:id')
-    .get(security.isAuthorized())
+    .get(security.isAuthorized(), (req: Request, res: Response, next: NextFunction) => {
+      // SECURITY FIX (CWE-284): Added ownership check to prevent BOLA/IDOR
+      const requestedId = parseInt(req.params.id, 10)
+      const loggedInUser = security.authenticatedUsers.from(req)
+      if (!loggedInUser || (requestedId !== loggedInUser.data.id && loggedInUser.data.role !== 'admin')) {
+        return res.status(403).json({ error: 'Access denied: you may only access your own user data' })
+      }
+      next()
+    })
     .put(security.denyAll())
     .delete(security.denyAll())
+
   /* Products: Only GET is allowed in order to view products */ // vuln-code-snippet neutral-line changeProductChallenge
   app.post('/api/Products', security.isAuthorized()) // vuln-code-snippet neutral-line changeProductChallenge
   // app.put('/api/Products/:id', security.isAuthorized()) // vuln-code-snippet vuln-line changeProductChallenge
