@@ -96,3 +96,4 @@ jobs:
           path: trivy-results.sarif
           retention-days: 30
 
+
